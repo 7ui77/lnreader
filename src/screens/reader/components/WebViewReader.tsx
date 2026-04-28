@@ -74,7 +74,9 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
     prevChapter,
     webViewRef,
     loadNextChapter,
+    loadPrevChapter,
     setCurrentChapter,
+    updateCurrentChapter,
   } = useChapterContext();
   const theme = useTheme();
   // Use state for settings so they update when MMKV changes
@@ -465,9 +467,18 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
               }
             });
             break;
+          case 'load-prev':
+            loadPrevChapter().then(res => {
+              if (res) {
+                webViewRef.current?.injectJavaScript(`
+                  reader.prependChapter(${JSON.stringify(res.chapter)}, ${JSON.stringify(res.chapterText)});
+                `);
+              }
+            });
+            break;
           case 'chapter-changed':
             if (event.data && typeof event.data === 'object') {
-              setCurrentChapter(event.data as any);
+              updateCurrentChapter((event.data as any).id);
             }
             break;
         }

@@ -255,32 +255,61 @@ export default function useChapter(
   }, [autoScroll, autoScrollInterval, autoScrollOffset, webViewRef]);
 
   const updateTracker = useCallback(() => {
-    const chapterNumber = parseChapterNumber(novel.name, chapter.name);
+    const chapterNumber = parseChapterNumber(novel.name, currentChapter.name);
     if (tracker && trackedNovel && chapterNumber > trackedNovel.progress) {
       updateAllTrackedNovels({ progress: chapterNumber });
     }
-  }, [chapter.name, novel.name, trackedNovel, tracker, updateAllTrackedNovels]);
+  }, [
+    currentChapter.name,
+    novel.name,
+    trackedNovel,
+    tracker,
+    updateAllTrackedNovels,
+  ]);
 
   const saveProgress = useCallback(
     (percentage: number) => {
       if (!incognitoMode) {
-        updateChapterProgress(chapter.id, percentage > 100 ? 100 : percentage);
+        updateChapterProgress(
+          currentChapter.id,
+          percentage > 100 ? 100 : percentage,
+        );
 
         if (percentage >= 97) {
           // a relative number
-          markChapterRead(chapter.id);
+          markChapterRead(currentChapter.id);
           updateTracker();
         }
       }
     },
     [
-      chapter.id,
+      currentChapter.id,
       incognitoMode,
       markChapterRead,
       updateChapterProgress,
       updateTracker,
     ],
   );
+
+  const updateCurrentChapter = useCallback(async (chapterId: number) => {
+    const fullChapter = await getDbChapter(chapterId);
+    if (fullChapter) {
+      setCurrentChapter(fullChapter);
+      const [nextChap, prevChap] = await Promise.all([
+        getNextChapter(
+          fullChapter.novelId,
+          fullChapter.position!,
+          fullChapter.page ?? '',
+        ),
+        getPrevChapter(
+          fullChapter.novelId,
+          fullChapter.position!,
+          fullChapter.page ?? '',
+        ),
+      ]);
+      setAdjacentChapter([nextChap!, prevChap!]);
+    }
+  }, []);
 
   const hideHeader = useCallback(() => {
     if (!hidden) {
@@ -334,18 +363,38 @@ export default function useChapter(
     }
   }, [nextChapter, loadChapterText, novel.pluginId, novel.name]);
 
+  const loadPrevChapter = useCallback(async () => {
+    if (prevChapter) {
+      const text = await loadChapterText(prevChapter.id, prevChapter.path);
+      const sanitizedText = sanitizeChapterText(
+        novel.pluginId,
+        novel.name,
+        prevChapter.name,
+        text,
+      );
+      return {
+        chapter: prevChapter,
+        chapterText: sanitizedText,
+      };
+    }
+  }, [prevChapter, loadChapterText, novel.pluginId, novel.name]);
+
   useEffect(() => {
     if (!incognitoMode) {
-      insertHistory(chapter.id);
-      getDbChapter(chapter.id).then(result => result && setLastRead(result));
+      insertHistory(currentChapter.id);
+      getDbChapter(currentChapter.id).then(
+        result => result && setLastRead(result),
+      );
     }
 
     return () => {
       if (!incognitoMode) {
-        getDbChapter(chapter.id).then(result => result && setLastRead(result));
+        getDbChapter(currentChapter.id).then(
+          result => result && setLastRead(result),
+        );
       }
     };
-  }, [incognitoMode, setLastRead, setLoading, chapter.id]);
+  }, [incognitoMode, setLastRead, currentChapter.id]);
 
   useEffect(() => {
     if (!chapter || !chapterText) {
@@ -356,8 +405,8 @@ export default function useChapter(
   const refetch = useCallback(() => {
     setLoading(true);
     setError('');
-    getChapter();
-  }, [getChapter]);
+    getChapter(currentChapter);
+  }, [getChapter, currentChapter]);
 
   return useMemo(
     () => ({
@@ -377,8 +426,10 @@ export default function useChapter(
       setLoading,
       getChapter,
       loadNextChapter,
+      loadPrevChapter,
       currentChapter,
       setCurrentChapter,
+      updateCurrentChapter,
     }),
     [
       hidden,
@@ -397,8 +448,10 @@ export default function useChapter(
       setLoading,
       getChapter,
       loadNextChapter,
+      loadPrevChapter,
       currentChapter,
       setCurrentChapter,
+      updateCurrentChapter,
     ],
   );
 }

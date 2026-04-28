@@ -64,15 +64,15 @@ export const ChapterContent = ({
   openDrawer,
 }: ChapterContentProps) => {
   const { left, right } = useSafeAreaInsets();
-  const { novel, chapter } = useChapterContext();
+  const { novel, chapter, currentChapter } = useChapterContext();
   const readerSheetRef = useRef<BottomSheetModalMethods>(null);
   const theme = useTheme();
   const { pageReader = false, keepScreenOn } = useChapterGeneralSettings();
-  const [bookmarked, setBookmarked] = useState<boolean>(chapter.bookmark ?? false);
+  const [bookmarked, setBookmarked] = useState<boolean>(currentChapter.bookmark ?? false);
 
   useEffect(() => {
-    setBookmarked(chapter.bookmark ?? false);
-  }, [chapter]);
+    setBookmarked(currentChapter.bookmark ?? false);
+  }, [currentChapter.id, currentChapter.bookmark]);
 
   const { hidden, loading, error, webViewRef, hideHeader, refetch } =
     useChapterContext();

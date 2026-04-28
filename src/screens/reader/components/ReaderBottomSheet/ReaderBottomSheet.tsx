@@ -45,29 +45,56 @@ type TabViewLabelProps = {
   style?: StyleProp<TextStyle | null>;
 };
 
-const ReaderTab: React.FC = React.memo(() => (
-  <Suspense fallback={<></>}>
-    <View style={styles.readerTab}>
-      <TextSizeSlider />
-      <ReaderThemeSelector />
-      <ReaderTextAlignSelector />
-      <ReaderValueChange
-        label={getString('readerScreen.bottomSheet.lineHeight')}
-        valueKey="lineHeight"
-      />
-      <ReaderValueChange
-        label={getString('readerScreen.bottomSheet.padding')}
-        valueKey="padding"
-        valueChange={2}
-        min={0}
-        max={50}
-        decimals={0}
-        unit="px"
-      />
-      <ReaderFontPicker />
-    </View>
-  </Suspense>
-));
+const ReaderTab: React.FC = React.memo(() => {
+  const theme = useTheme();
+  const { setChapterGeneralSettings, ...settings } =
+    useChapterGeneralSettings();
+
+  const toggleSetting = useCallback(
+    (key: keyof typeof settings) => {
+      const newValue = !settings[key];
+      const newSettings: Partial<typeof settings> = { [key]: newValue };
+      if (key === 'pageReader' && newValue) {
+        newSettings.infiniteScroll = false;
+      }
+      if (key === 'infiniteScroll' && newValue) {
+        newSettings.pageReader = false;
+      }
+      setChapterGeneralSettings(newSettings);
+    },
+    [setChapterGeneralSettings, settings],
+  );
+
+  return (
+    <Suspense fallback={<></>}>
+      <View style={styles.readerTab}>
+        <TextSizeSlider />
+        <ReaderThemeSelector />
+        <ReaderTextAlignSelector />
+        <ReaderValueChange
+          label={getString('readerScreen.bottomSheet.lineHeight')}
+          valueKey="lineHeight"
+        />
+        <ReaderValueChange
+          label={getString('readerScreen.bottomSheet.padding')}
+          valueKey="padding"
+          valueChange={2}
+          min={0}
+          max={50}
+          decimals={0}
+          unit="px"
+        />
+        <ReaderFontPicker />
+        <ReaderSheetPreferenceItem
+          label={getString('readerScreen.bottomSheet.infiniteScroll')}
+          onPress={() => toggleSetting('infiniteScroll')}
+          value={settings.infiniteScroll}
+          theme={theme}
+        />
+      </View>
+    </Suspense>
+  );
+});
 
 const GeneralTab: React.FC = React.memo(() => {
   const theme = useTheme();

@@ -45,6 +45,7 @@ window.reader = new (function () {
   this.layoutEvent = undefined;
   this.chapterEndingVisible = van.state(false);
   this.loadingNext = false;
+  this.loadingPrev = false;
 
   this.post = obj => window.ReactNativeWebView.postMessage(JSON.stringify(obj));
 
@@ -55,11 +56,38 @@ window.reader = new (function () {
     chapterDiv.innerHTML = html;
     chapterDiv.setAttribute('data-chapter-id', chapter.id);
     chapterDiv.setAttribute('data-chapter-name', chapter.name);
+    chapterDiv.setAttribute('data-chapter-path', chapter.path);
+    chapterDiv.setAttribute('data-chapter-novel-id', chapter.novelId);
+    chapterDiv.setAttribute('data-chapter-progress', chapter.progress || 0);
     // for progress tracking
     chapterDiv.setAttribute('data-chapter-pos', chapter.position);
 
     document.getElementById('LNReader-chapter').appendChild(chapterDiv);
     this.loadingNext = false;
+    this.refresh();
+  };
+
+  this.prependChapter = (chapter, html) => {
+    const chapterDiv = document.createElement('div');
+    chapterDiv.id = 'LNReader-chapter-' + chapter.id;
+    chapterDiv.className = 'LNReader-chapter';
+    chapterDiv.innerHTML = html;
+    chapterDiv.setAttribute('data-chapter-id', chapter.id);
+    chapterDiv.setAttribute('data-chapter-name', chapter.name);
+    chapterDiv.setAttribute('data-chapter-path', chapter.path);
+    chapterDiv.setAttribute('data-chapter-novel-id', chapter.novelId);
+    chapterDiv.setAttribute('data-chapter-progress', chapter.progress || 0);
+    chapterDiv.setAttribute('data-chapter-pos', chapter.position);
+
+    const container = document.getElementById('LNReader-chapter');
+    const oldHeight = container.scrollHeight;
+    container.insertBefore(chapterDiv, container.firstChild);
+    const newHeight = container.scrollHeight;
+
+    // Adjust scroll to maintain position
+    window.scrollBy(0, newHeight - oldHeight);
+
+    this.loadingPrev = false;
     this.refresh();
   };
 
@@ -131,7 +159,10 @@ window.reader = new (function () {
               this.chapter = {
                 id: chapterId,
                 name: chap.getAttribute('data-chapter-name'),
+                path: chap.getAttribute('data-chapter-path'),
+                novelId: parseInt(chap.getAttribute('data-chapter-novel-id')),
                 position: parseInt(chap.getAttribute('data-chapter-pos')),
+                progress: parseInt(chap.getAttribute('data-chapter-progress')) || 0,
               };
               this.post({ type: 'chapter-changed', data: this.chapter });
             }
@@ -146,10 +177,15 @@ window.reader = new (function () {
           ratio = (window.scrollY + this.layoutHeight) / this.chapterHeight;
         }
 
-        this.post({
-          type: 'save',
-          data: parseInt(ratio * 100, 10),
-        });
+        const newProgress = parseInt(ratio * 100, 10);
+        if (newProgress > (this.chapter.progress || 0)) {
+          this.chapter.progress = newProgress;
+          currentChap?.setAttribute('data-chapter-progress', newProgress);
+          this.post({
+            type: 'save',
+            data: newProgress,
+          });
+        }
 
         if (
           (window.scrollY + this.layoutHeight) / this.chapterHeight > 0.9 &&
@@ -157,6 +193,15 @@ window.reader = new (function () {
         ) {
           this.loadingNext = true;
           this.post({ type: 'load-next' });
+        }
+
+        if (window.scrollY < 200 && !this.loadingPrev) {
+          const firstChapter = document.querySelector('.LNReader-chapter');
+          if (firstChapter) {
+            const firstChapterId = parseInt(firstChapter.getAttribute('data-chapter-id'));
+            this.loadingPrev = true;
+            this.post({ type: 'load-prev', data: { firstChapterId } });
+          }
         }
       } else {
         this.post({
