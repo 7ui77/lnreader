@@ -77,6 +77,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
     loadPrevChapter,
     setCurrentChapter,
     updateCurrentChapter,
+    refetch,
   } = useChapterContext();
   const theme = useTheme();
   // Use state for settings so they update when MMKV changes
