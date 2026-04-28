@@ -283,7 +283,6 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
     settingsSort,
     settingsFilter,
     setChapters,
-    novelSettings.filter,
     pluginId,
     novelPath,
   ]);

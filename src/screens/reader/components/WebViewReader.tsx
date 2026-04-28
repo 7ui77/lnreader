@@ -75,7 +75,6 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
     webViewRef,
     loadNextChapter,
     loadPrevChapter,
-    setCurrentChapter,
     updateCurrentChapter,
     refetch,
   } = useChapterContext();
@@ -260,7 +259,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
       subscription.remove();
       mmkvListener.remove();
     };
-  }, [webViewRef]);
+  }, [webViewRef, chapterGeneralSettings, refetch]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
