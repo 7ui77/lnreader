@@ -227,6 +227,8 @@ export default function useChapter(
       novel.path,
       novel.totalPages,
       setLoading,
+      setCurrentChapter,
+      setAdjacentChapter,
     ],
   );
 
@@ -291,25 +293,28 @@ export default function useChapter(
     ],
   );
 
-  const updateCurrentChapter = useCallback(async (chapterId: number) => {
-    const fullChapter = await getDbChapter(chapterId);
-    if (fullChapter) {
-      setCurrentChapter(fullChapter);
-      const [nextChap, prevChap] = await Promise.all([
-        getNextChapter(
-          fullChapter.novelId,
-          fullChapter.position!,
-          fullChapter.page ?? '',
-        ),
-        getPrevChapter(
-          fullChapter.novelId,
-          fullChapter.position!,
-          fullChapter.page ?? '',
-        ),
-      ]);
-      setAdjacentChapter([nextChap!, prevChap!]);
-    }
-  }, []);
+  const updateCurrentChapter = useCallback(
+    async (chapterId: number) => {
+      const fullChapter = await getDbChapter(chapterId);
+      if (fullChapter) {
+        setCurrentChapter(fullChapter);
+        const [nextChap, prevChap] = await Promise.all([
+          getNextChapter(
+            fullChapter.novelId,
+            fullChapter.position!,
+            fullChapter.page ?? '',
+          ),
+          getPrevChapter(
+            fullChapter.novelId,
+            fullChapter.position!,
+            fullChapter.page ?? '',
+          ),
+        ]);
+        setAdjacentChapter([nextChap!, prevChap!]);
+      }
+    },
+    [setCurrentChapter, setAdjacentChapter],
+  );
 
   const hideHeader = useCallback(() => {
     if (!hidden) {

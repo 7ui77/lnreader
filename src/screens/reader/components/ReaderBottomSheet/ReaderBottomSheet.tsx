@@ -52,7 +52,7 @@ const ReaderTab: React.FC = React.memo(() => {
 
   const toggleSetting = useCallback(
     (key: keyof typeof settings) => {
-      const newValue = !settings[key];
+      const newValue = !settings[key as keyof typeof settings];
       const newSettings: Partial<typeof settings> = { [key]: newValue };
       if (key === 'pageReader' && newValue) {
         newSettings.infiniteScroll = false;
