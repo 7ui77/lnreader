@@ -75,8 +75,17 @@ const GeneralTab: React.FC = React.memo(() => {
     useChapterGeneralSettings();
 
   const toggleSetting = useCallback(
-    (key: keyof typeof settings) =>
-      setChapterGeneralSettings({ [key]: !settings[key] }),
+    (key: keyof typeof settings) => {
+      const newValue = !settings[key];
+      const newSettings: Partial<typeof settings> = { [key]: newValue };
+      if (key === 'pageReader' && newValue) {
+        newSettings.infiniteScroll = false;
+      }
+      if (key === 'infiniteScroll' && newValue) {
+        newSettings.pageReader = false;
+      }
+      setChapterGeneralSettings(newSettings);
+    },
     [setChapterGeneralSettings, settings],
   );
 
@@ -89,6 +98,7 @@ const GeneralTab: React.FC = React.memo(() => {
       { key: 'showScrollPercentage', label: 'showProgressPercentage' },
       { key: 'swipeGestures', label: 'swipeGestures' },
       { key: 'pageReader', label: 'pageReader' },
+      { key: 'infiniteScroll', label: 'infiniteScroll' },
       { key: 'removeExtraParagraphSpacing', label: 'removeExtraSpacing' },
       { key: 'useVolumeButtons', label: 'volumeButtonsScroll' },
       { key: 'bionicReading', label: 'bionicReading' },

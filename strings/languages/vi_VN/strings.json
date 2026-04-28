@@ -470,6 +470,7 @@
       "lineHeight": "Line height",
       "padding": "Khoảng đệm",
       "pageReader": "Paged reading (Experimental)",
+      "infiniteScroll": "Cuộn vô hạn",
       "removeExtraSpacing": "Remove extra spacing",
       "scrollAmount": "Scroll amount (screen height by default)",
       "showBatteryAndTime": "Battery & time",

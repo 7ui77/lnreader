@@ -470,6 +470,7 @@
       "lineHeight": "Line height",
       "padding": "Padding",
       "pageReader": "Paged reading (Experimental)",
+      "infiniteScroll": "Infinite scroll",
       "removeExtraSpacing": "Remove extra spacing",
       "scrollAmount": "Scroll amount (screen height by default)",
       "showBatteryAndTime": "Battery & time",

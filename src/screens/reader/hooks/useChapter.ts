@@ -51,6 +51,7 @@ export default function useChapter(
   } = useNovelContext();
   const [hidden, setHidden] = useState(true);
   const [chapter, setChapter] = useState(initialChapter);
+  const [currentChapter, setCurrentChapter] = useState(initialChapter);
   const [loading, setLoading] = useState(true);
   const [chapterText, setChapterText] = useState('');
 
@@ -199,6 +200,7 @@ export default function useChapter(
           chapterTextCache.set(chap.id, text);
         }
         setChapter(chap);
+        setCurrentChapter(chap);
         setChapterText(
           sanitizeChapterText(
             novel.pluginId,
@@ -316,6 +318,22 @@ export default function useChapter(
     [getChapter, nextChapter, prevChapter],
   );
 
+  const loadNextChapter = useCallback(async () => {
+    if (nextChapter) {
+      const text = await loadChapterText(nextChapter.id, nextChapter.path);
+      const sanitizedText = sanitizeChapterText(
+        novel.pluginId,
+        novel.name,
+        nextChapter.name,
+        text,
+      );
+      return {
+        chapter: nextChapter,
+        chapterText: sanitizedText,
+      };
+    }
+  }, [nextChapter, loadChapterText, novel.pluginId, novel.name]);
+
   useEffect(() => {
     if (!incognitoMode) {
       insertHistory(chapter.id);
@@ -358,6 +376,9 @@ export default function useChapter(
       setChapter,
       setLoading,
       getChapter,
+      loadNextChapter,
+      currentChapter,
+      setCurrentChapter,
     }),
     [
       hidden,
@@ -375,6 +396,9 @@ export default function useChapter(
       setChapter,
       setLoading,
       getChapter,
+      loadNextChapter,
+      currentChapter,
+      setCurrentChapter,
     ],
   );
 }

@@ -388,6 +388,7 @@ export interface StringMap {
   'readerScreen.bottomSheet.lineHeight': 'string';
   'readerScreen.bottomSheet.padding': 'string';
   'readerScreen.bottomSheet.pageReader': 'string';
+  'readerScreen.bottomSheet.infiniteScroll': 'string';
   'readerScreen.bottomSheet.removeExtraSpacing': 'string';
   'readerScreen.bottomSheet.scrollAmount': 'string';
   'readerScreen.bottomSheet.showBatteryAndTime': 'string';

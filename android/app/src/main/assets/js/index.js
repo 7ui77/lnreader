@@ -2,7 +2,8 @@ const { div, p, img, button } = van.tags;
 
 const ChapterEnding = () => {
   return () =>
-    reader.generalSettings.val.pageReader
+    reader.generalSettings.val.pageReader ||
+    reader.generalSettings.val.infiniteScroll
       ? div()
       : div(div({ class: 'info-text' }, reader.strings.finished), () =>
           reader.nextChapter
@@ -193,9 +194,33 @@ const Footer = () => {
     }),
   );
   window.addEventListener('scroll', () => {
-    let ratio = (window.scrollY + reader.layoutHeight) / reader.chapterHeight;
+    let ratio;
+    if (reader.generalSettings.val.infiniteScroll) {
+      const chapters = document.querySelectorAll('.LNReader-chapter');
+      let currentChap = null;
+      for (const chap of chapters) {
+        const rect = chap.getBoundingClientRect();
+        if (rect.top < reader.layoutHeight && rect.bottom > 0) {
+          currentChap = chap;
+          break;
+        }
+      }
+      if (currentChap) {
+        const rect = currentChap.getBoundingClientRect();
+        const totalHeight = rect.height;
+        const progress = reader.layoutHeight - rect.top;
+        ratio = progress / totalHeight;
+      } else {
+        ratio = (window.scrollY + reader.layoutHeight) / reader.chapterHeight;
+      }
+    } else {
+      ratio = (window.scrollY + reader.layoutHeight) / reader.chapterHeight;
+    }
     if (ratio > 1) {
       ratio = 1;
+    }
+    if (ratio < 0) {
+      ratio = 0;
     }
     percentage.val = parseInt(ratio * 100);
   });

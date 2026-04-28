@@ -29,7 +29,7 @@ const ReaderAppbar = ({
   bookmarked,
   setBookmarked,
 }: ReaderAppbarProps) => {
-  const { chapter, novel } = useChapterContext();
+  const { currentChapter, novel } = useChapterContext();
   const { statusBarHeight } = useNovelContext();
 
   const entering = () => {
@@ -102,14 +102,14 @@ const ReaderAppbar = ({
             style={[styles.subtitle, { color: theme.onSurfaceVariant }]}
             numberOfLines={1}
           >
-            {chapter.name}
+            {currentChapter.name}
           </Text>
         </View>
         <IconButtonV2
           name={bookmarked ? 'bookmark' : 'bookmark-outline'}
           size={24}
           onPress={() => {
-            bookmarkChapter(chapter.id).then(() => setBookmarked(!bookmarked));
+            bookmarkChapter(currentChapter.id).then(() => setBookmarked(!bookmarked));
           }}
           color={theme.onSurface}
           theme={theme}

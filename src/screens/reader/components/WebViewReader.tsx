@@ -73,6 +73,8 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
     nextChapter,
     prevChapter,
     webViewRef,
+    loadNextChapter,
+    setCurrentChapter,
   } = useChapterContext();
   const theme = useTheme();
   // Use state for settings so they update when MMKV changes
@@ -221,11 +223,24 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
           );
           break;
         case CHAPTER_GENERAL_SETTINGS:
-          webViewRef.current?.injectJavaScript(
-            `reader.generalSettings.val = ${MMKVStorage.getString(
-              CHAPTER_GENERAL_SETTINGS,
-            )}`,
-          );
+          const newGeneralSettings =
+            getMMKVObject<ChapterGeneralSettings>(CHAPTER_GENERAL_SETTINGS) ||
+            initialChapterGeneralSettings;
+          const oldGeneralSettings = chapterGeneralSettings;
+
+          if (
+            newGeneralSettings.infiniteScroll !==
+              oldGeneralSettings.infiniteScroll ||
+            newGeneralSettings.pageReader !== oldGeneralSettings.pageReader
+          ) {
+            refetch();
+          } else {
+            webViewRef.current?.injectJavaScript(
+              `reader.generalSettings.val = ${MMKVStorage.getString(
+                CHAPTER_GENERAL_SETTINGS,
+              )}`,
+            );
+          }
           break;
       }
     });
@@ -441,6 +456,20 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
               updateTTSPlaybackState(isReading);
             }
             break;
+          case 'load-next':
+            loadNextChapter().then(res => {
+              if (res) {
+                webViewRef.current?.injectJavaScript(`
+                  reader.appendChapter(${JSON.stringify(res.chapter)}, ${JSON.stringify(res.chapterText)});
+                `);
+              }
+            });
+            break;
+          case 'chapter-changed':
+            if (event.data && typeof event.data === 'object') {
+              setCurrentChapter(event.data as any);
+            }
+            break;
         }
       }}
       source={{
@@ -503,7 +532,13 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({ onPress }) => {
               ${chapterGeneralSettings.pageReader ? '' : 'display: none'}"
               ">${chapter.name}</div>
               <div id="LNReader-chapter">
-                ${html}  
+                <div class="LNReader-chapter" 
+                     id="LNReader-chapter-${chapter.id}"
+                     data-chapter-id="${chapter.id}"
+                     data-chapter-name="${chapter.name}"
+                     data-chapter-pos="${chapter.position}">
+                  ${html}  
+                </div>
               </div>
               <div id="reader-ui"></div>
               </body>

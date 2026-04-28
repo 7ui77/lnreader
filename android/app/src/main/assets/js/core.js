@@ -44,8 +44,25 @@ window.reader = new (function () {
 
   this.layoutEvent = undefined;
   this.chapterEndingVisible = van.state(false);
+  this.loadingNext = false;
 
   this.post = obj => window.ReactNativeWebView.postMessage(JSON.stringify(obj));
+
+  this.appendChapter = (chapter, html) => {
+    const chapterDiv = document.createElement('div');
+    chapterDiv.id = 'LNReader-chapter-' + chapter.id;
+    chapterDiv.className = 'LNReader-chapter';
+    chapterDiv.innerHTML = html;
+    chapterDiv.setAttribute('data-chapter-id', chapter.id);
+    chapterDiv.setAttribute('data-chapter-name', chapter.name);
+    // for progress tracking
+    chapterDiv.setAttribute('data-chapter-pos', chapter.position);
+
+    document.getElementById('LNReader-chapter').appendChild(chapterDiv);
+    this.loadingNext = false;
+    this.refresh();
+  };
+
   this.refresh = () => {
     if (this.generalSettings.val.pageReader) {
       this.chapterWidth = this.chapterElement.scrollWidth;
@@ -101,13 +118,55 @@ window.reader = new (function () {
 
   document.onscrollend = () => {
     if (!this.generalSettings.val.pageReader) {
-      this.post({
-        type: 'save',
-        data: parseInt(
-          ((window.scrollY + this.layoutHeight) / this.chapterHeight) * 100,
-          10,
-        ),
-      });
+      if (this.generalSettings.val.infiniteScroll) {
+        let ratio;
+        const chapters = document.querySelectorAll('.LNReader-chapter');
+        let currentChap = null;
+        for (const chap of chapters) {
+          const rect = chap.getBoundingClientRect();
+          if (rect.top < this.layoutHeight && rect.bottom > 0) {
+            currentChap = chap;
+            const chapterId = parseInt(chap.getAttribute('data-chapter-id'));
+            if (chapterId !== this.chapter.id) {
+              this.chapter = {
+                id: chapterId,
+                name: chap.getAttribute('data-chapter-name'),
+                position: parseInt(chap.getAttribute('data-chapter-pos')),
+              };
+              this.post({ type: 'chapter-changed', data: this.chapter });
+            }
+            break;
+          }
+        }
+
+        if (currentChap) {
+          const rect = currentChap.getBoundingClientRect();
+          ratio = (this.layoutHeight - rect.top) / rect.height;
+        } else {
+          ratio = (window.scrollY + this.layoutHeight) / this.chapterHeight;
+        }
+
+        this.post({
+          type: 'save',
+          data: parseInt(ratio * 100, 10),
+        });
+
+        if (
+          (window.scrollY + this.layoutHeight) / this.chapterHeight > 0.9 &&
+          !this.loadingNext
+        ) {
+          this.loadingNext = true;
+          this.post({ type: 'load-next' });
+        }
+      } else {
+        this.post({
+          type: 'save',
+          data: parseInt(
+            ((window.scrollY + this.layoutHeight) / this.chapterHeight) * 100,
+            10,
+          ),
+        });
+      }
     }
   };
 
