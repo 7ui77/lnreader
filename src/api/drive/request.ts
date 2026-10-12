@@ -36,6 +36,15 @@ export const list = async (
       Accept: 'application/json',
     },
   });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(
+      errorData?.error?.message ||
+        `Google Drive API error: ${res.status} ${res.statusText}`,
+    );
+  }
+
   const data = await res.json();
   if (data?.files) {
     return data;

@@ -194,7 +194,12 @@ function RestoreBackup({
           backups = await getBackups(undefined, true);
         }
         setBackupList(backups);
-      } catch {
+      } catch (error) {
+        showToast(
+          error instanceof Error
+            ? error.message
+            : getString('common.somethingWentWrong'),
+        );
         setBackupList([]);
       }
     };
@@ -230,7 +235,7 @@ function RestoreBackup({
               }}
             >
               <Text style={{ color: theme.primary }}>
-                {item.name?.replace(/\.backup$/, '').replace(/\.zip$/, '')}
+                {item.name?.replace(/\.backup$/, '')}
               </Text>
               <Text style={[{ color: theme.secondary }, styles.fontSize]}>
                 {'(' +

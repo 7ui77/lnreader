@@ -160,4 +160,56 @@ describe('driveRestore', () => {
     expect(restoreData).toHaveBeenCalledWith('/cache/BackupData', setMeta);
     expect(finalizeRestoredPlugins).toHaveBeenCalled();
   });
+
+  it('rejects standalone restore when required section archive is missing', async () => {
+    const zipBackupFile = {
+      id: 'zip-file-123',
+      name: 'lnreader_backup_2026.zip',
+      mimeType: 'application/zip',
+      parents: ['root'],
+      kind: 'drive#file',
+    };
+
+    jest.mocked(NativeFile.exists).mockImplementation(async path => {
+      if (path.endsWith('data.zip')) {
+        return true;
+      }
+      return false; // section archive missing
+    });
+
+    const { getSelectedBackupFileSections } =
+      jest.requireMock('../fileSections');
+    jest.mocked(getSelectedBackupFileSections).mockReturnValueOnce([
+      {
+        archiveName: 'novel-files.zip',
+        storagePath: '/storage/novel_files',
+      },
+    ]);
+
+    jest.mocked(restoreData).mockResolvedValueOnce({
+      novelCount: 1,
+      failedNovelCount: 0,
+      categoryCount: 0,
+      failedCategoryCount: 0,
+      settingsRestored: true,
+      failedSectionCount: 0,
+      pluginIds: [],
+      novelMappings: [],
+      manifest: {
+        appVersion: '2.1.4',
+        formatVersion: 2 as const,
+        sections: {
+          library: true,
+          settings: true,
+          plugins: false,
+          downloadedFiles: true,
+        },
+      },
+    });
+
+    const setMeta = jest.fn();
+    await expect(driveRestore(zipBackupFile, setMeta)).rejects.toThrow(
+      'backupScreen.invalidBackupFolder',
+    );
+  });
 });

@@ -93,6 +93,44 @@ describe('drive API', () => {
       const result = await exists('NonExistent', true);
       expect(result).toBeUndefined();
     });
+
+    it('paginates through multiple pages until marked file is found', async () => {
+      jest
+        .mocked(list)
+        .mockResolvedValueOnce({
+          kind: 'drive#fileList',
+          incompleteSearch: false,
+          nextPageToken: 'page-2-token',
+          files: [
+            {
+              id: 'unmarked-1',
+              name: 'OtherFolder',
+              kind: 'drive#file',
+              parents: ['root'],
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          kind: 'drive#fileList',
+          incompleteSearch: false,
+          nextPageToken: undefined,
+          files: [
+            {
+              id: 'marked-target',
+              name: 'LNReader',
+              description: '(Do not change this!) LNReader-Drive',
+              kind: 'drive#file',
+              parents: ['root'],
+            },
+          ],
+        });
+
+      const result = await exists('LNReader', true, undefined, true);
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('marked-target');
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(list).mock.calls[1][0].pageToken).toBe('page-2-token');
+    });
   });
 
   describe('getBackups', () => {
@@ -117,6 +155,9 @@ describe('drive API', () => {
       expect(backups[0].id).toBe('backup-1');
       const query = jest.mocked(list).mock.calls[0][0].q;
       expect(query).toContain("'parent-123' in parents");
+      expect(query).toContain(
+        "mimeType = 'application/vnd.google-apps.folder'",
+      );
       expect(query).not.toContain('fullText contains');
     });
 
@@ -141,6 +182,48 @@ describe('drive API', () => {
       const query = jest.mocked(list).mock.calls[0][0].q;
       expect(query).not.toContain('in parents');
       expect(query).not.toContain('fullText contains');
+    });
+
+    it('paginates across multiple pages to collect all backups', async () => {
+      jest
+        .mocked(list)
+        .mockResolvedValueOnce({
+          kind: 'drive#fileList',
+          incompleteSearch: false,
+          nextPageToken: 'token-page-2',
+          files: [
+            {
+              id: 'backup-page-1',
+              name: 'backup1.backup',
+              description: '(Do not change this!) LNReader-Drive',
+              parents: ['root'],
+              kind: 'drive#file',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          kind: 'drive#fileList',
+          incompleteSearch: false,
+          nextPageToken: undefined,
+          files: [
+            {
+              id: 'backup-page-2',
+              name: 'backup2.backup',
+              description: '(Do not change this!) LNReader-Drive',
+              parents: ['root'],
+              kind: 'drive#file',
+            },
+          ],
+        });
+
+      const backups = await getBackups(undefined, true);
+      expect(backups).toHaveLength(2);
+      expect(backups.map(b => b.id)).toEqual([
+        'backup-page-1',
+        'backup-page-2',
+      ]);
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(list).mock.calls[1][0].pageToken).toBe('token-page-2');
     });
   });
 

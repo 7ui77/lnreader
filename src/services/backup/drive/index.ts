@@ -143,29 +143,30 @@ export const driveRestore = async (
 
     if (restoreResult.manifest.formatVersion === 1) {
       const legacyArchive = CACHE_DIR_PATH + '/' + ZipBackupName.DOWNLOAD;
-      if (await NativeFile.exists(legacyArchive)) {
-        const legacyFilesRestorePath =
-          getLegacyFilesRestorePath(CACHE_DIR_PATH);
-        await NativeZipArchive.unzip(legacyArchive, legacyFilesRestorePath);
-        await restoreLegacyFiles(
-          legacyFilesRestorePath,
-          restoreResult.novelMappings,
-        );
+      if (!(await NativeFile.exists(legacyArchive))) {
+        throw new Error(getString('backupScreen.invalidBackupFolder'));
       }
+      const legacyFilesRestorePath = getLegacyFilesRestorePath(CACHE_DIR_PATH);
+      await NativeZipArchive.unzip(legacyArchive, legacyFilesRestorePath);
+      await restoreLegacyFiles(
+        legacyFilesRestorePath,
+        restoreResult.novelMappings,
+      );
     } else {
       const novelFilesRestorePath = getNovelFilesRestorePath(CACHE_DIR_PATH);
       for (const section of getSelectedBackupFileSections(
         restoreResult.manifest.sections,
       )) {
         const archivePath = `${CACHE_DIR_PATH}/${section.archiveName}`;
-        if (await NativeFile.exists(archivePath)) {
-          await NativeZipArchive.unzip(
-            archivePath,
-            section.archiveName === ZipBackupName.NOVEL_FILES
-              ? novelFilesRestorePath
-              : section.storagePath,
-          );
+        if (!(await NativeFile.exists(archivePath))) {
+          throw new Error(getString('backupScreen.invalidBackupFolder'));
         }
+        await NativeZipArchive.unzip(
+          archivePath,
+          section.archiveName === ZipBackupName.NOVEL_FILES
+            ? novelFilesRestorePath
+            : section.storagePath,
+        );
       }
       if (restoreResult.manifest.sections.downloadedFiles) {
         await restoreNovelFiles(

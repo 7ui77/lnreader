@@ -20,21 +20,25 @@ export const exists = async (
   if (parentId) {
     q += ` and '${escapeQueryValue(parentId)}' in parents`;
   }
-  const res = await list({ q });
-  const files = res.files || [];
-  if (files.length === 0) {
-    return undefined;
-  }
-  if (marked) {
-    const markedFile = files.find(
-      file =>
-        file.name === fileName && file.description === LNREADER_DRIVE_MARK,
-    );
-    if (markedFile) {
-      return markedFile;
+  let pageToken: string | undefined = undefined;
+  let fallbackMatch: DriveFile | undefined = undefined;
+  do {
+    const res = await list({ q, pageToken });
+    const files = res.files || [];
+    for (const file of files) {
+      if (file.name === fileName) {
+        if (marked && file.description === LNREADER_DRIVE_MARK) {
+          return file;
+        }
+        if (!fallbackMatch) {
+          fallbackMatch = file;
+        }
+      }
     }
-  }
-  return files.find(file => file.name === fileName);
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+
+  return fallbackMatch;
 };
 
 export const makeDir = async (fileName: string, parentId?: string) => {
@@ -80,21 +84,32 @@ export const createFile = async (
 };
 
 export const getBackups = async (parentId?: string, marked?: boolean) => {
-  let q = `trashed = false and (name contains '.backup' or name contains '.zip')`;
+  let q = `trashed = false and mimeType = 'application/vnd.google-apps.folder' and name contains '.backup'`;
   if (parentId) {
     q += ` and '${escapeQueryValue(parentId)}' in parents`;
   }
-  const res = await list({ q, orderBy: 'createdTime desc' });
-  const files = res.files || [];
+  let fileList: DriveFile[] = [];
+  let pageToken: string | undefined = undefined;
+  do {
+    const res = await list({
+      q,
+      orderBy: 'createdTime desc',
+      pageToken,
+    });
+    const files = res.files || [];
+    fileList = fileList.concat(files);
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+
   if (marked) {
-    const markedFiles = files.filter(
+    const markedFiles = fileList.filter(
       file => file.description === LNREADER_DRIVE_MARK,
     );
     if (markedFiles.length > 0) {
       return markedFiles;
     }
   }
-  return files;
+  return fileList;
 };
 
 export const readDir = async (parentId: string, marked?: boolean) => {
