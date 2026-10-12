@@ -291,7 +291,8 @@ export const restoreData = async (
   } else {
     try {
       const items = (await NativeFile.readDir(novelDirPath)).filter(
-        item => !item.isDirectory,
+        (item: { isDirectory: boolean; path: string; name: string }) =>
+          !item.isDirectory,
       );
       for (const [index, item] of items.entries()) {
         updateRestoreProgress(

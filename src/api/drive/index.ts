@@ -3,24 +3,38 @@ import { DriveCreateRequestData, DriveFile } from './types';
 
 const LNREADER_DRIVE_MARK = '(Do not change this!) LNReader-Drive';
 
+const escapeQueryValue = (value: string) => {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+};
+
 export const exists = async (
   fileName: string,
   isFolder?: boolean,
   parentId?: string,
   marked?: boolean,
 ) => {
-  let q = `name = '${fileName}' and trashed = false `;
-  if (marked) {
-    q += ` and fullText contains '${LNREADER_DRIVE_MARK}' `;
-  }
+  let q = `name = '${escapeQueryValue(fileName)}' and trashed = false`;
   if (isFolder) {
-    q += " and mimeType = 'application/vnd.google-apps.folder' ";
+    q += " and mimeType = 'application/vnd.google-apps.folder'";
   }
   if (parentId) {
-    q += ` and '${parentId}' in parents `;
+    q += ` and '${escapeQueryValue(parentId)}' in parents`;
   }
   const res = await list({ q });
-  return res.files.find(file => file.name === fileName);
+  const files = res.files || [];
+  if (files.length === 0) {
+    return undefined;
+  }
+  if (marked) {
+    const markedFile = files.find(
+      file =>
+        file.name === fileName && file.description === LNREADER_DRIVE_MARK,
+    );
+    if (markedFile) {
+      return markedFile;
+    }
+  }
+  return files.find(file => file.name === fileName);
 };
 
 export const makeDir = async (fileName: string, parentId?: string) => {
@@ -65,39 +79,47 @@ export const createFile = async (
   return create(data);
 };
 
-export const getBackups = async (parentId: string, marked?: boolean) => {
-  let q = `
-      name contains '.backup' and trashed = false
-      and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents 
-    `;
-  if (marked) {
-    q += ` and fullText contains '${LNREADER_DRIVE_MARK}' `;
+export const getBackups = async (parentId?: string, marked?: boolean) => {
+  let q = `trashed = false and (name contains '.backup' or name contains '.zip')`;
+  if (parentId) {
+    q += ` and '${escapeQueryValue(parentId)}' in parents`;
   }
-  return list({
-    q,
-  }).then(res => res.files);
+  const res = await list({ q, orderBy: 'createdTime desc' });
+  const files = res.files || [];
+  if (marked) {
+    const markedFiles = files.filter(
+      file => file.description === LNREADER_DRIVE_MARK,
+    );
+    if (markedFiles.length > 0) {
+      return markedFiles;
+    }
+  }
+  return files;
 };
 
 export const readDir = async (parentId: string, marked?: boolean) => {
   let fileList: DriveFile[] = [];
   let pageToken = '';
-  let q = `
-    trashed = false and mimeType != 'application/vnd.google-apps.folder' 
-    and '${parentId}' in parents 
-  `;
-  if (marked) {
-    q += ` and fullText contains '${LNREADER_DRIVE_MARK}' `;
-  }
+  const q = `trashed = false and mimeType != 'application/vnd.google-apps.folder' and '${escapeQueryValue(
+    parentId,
+  )}' in parents`;
   let hasNextPage = true;
   while (hasNextPage) {
-    const query = pageToken ? q + ` and pageToken = '${pageToken}'` : q;
-    const { nextPageToken, files } = await list({ q: query });
+    const { nextPageToken, files } = await list({
+      q,
+      pageToken: pageToken || undefined,
+    });
     if (!nextPageToken) {
       hasNextPage = false;
     } else {
       pageToken = nextPageToken;
     }
-    fileList = fileList.concat(files);
+    if (files) {
+      const filtered = marked
+        ? files.filter(file => file.description === LNREADER_DRIVE_MARK)
+        : files;
+      fileList = fileList.concat(filtered);
+    }
   }
   return fileList;
 };

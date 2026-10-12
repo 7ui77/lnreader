@@ -183,11 +183,22 @@ function RestoreBackup({
   const { dateFormat = 'default', relativeTimestamps = true } =
     useAppSettings();
   useEffect(() => {
-    exists('LNReader', true, undefined, true).then(rootFolder => {
-      if (rootFolder) {
-        getBackups(rootFolder.id, true).then(backups => setBackupList(backups));
+    const fetchBackups = async () => {
+      try {
+        let backups: DriveFile[] = [];
+        const rootFolder = await exists('LNReader', true, undefined, true);
+        if (rootFolder) {
+          backups = await getBackups(rootFolder.id, true);
+        }
+        if (backups.length === 0) {
+          backups = await getBackups(undefined, true);
+        }
+        setBackupList(backups);
+      } catch {
+        setBackupList([]);
       }
-    });
+    };
+    fetchBackups();
   }, []);
 
   const emptyComponent = useCallback(() => {
@@ -219,7 +230,7 @@ function RestoreBackup({
               }}
             >
               <Text style={{ color: theme.primary }}>
-                {item.name?.replace(/\.backup$/, ' ')}
+                {item.name?.replace(/\.backup$/, '').replace(/\.zip$/, '')}
               </Text>
               <Text style={[{ color: theme.secondary }, styles.fontSize]}>
                 {'(' +

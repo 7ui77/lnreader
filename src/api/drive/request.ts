@@ -6,13 +6,14 @@ import {
   DriveRequestParams,
 } from './types';
 import { PATH_SEPARATOR } from '@api/constants';
-import NativeZipArchive from '@modules/native-zip-archive'
+import NativeZipArchive from '@modules/native-zip-archive';
 
 const BASE_URL = 'https://www.googleapis.com/drive/v3/files';
 const MEDIA_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
 
 const buildParams = (params: DriveRequestParams) => {
   return Object.entries(params)
+    .filter(([, val]) => val !== undefined && val !== null)
     .map(pair => pair.map(encodeURIComponent).join('='))
     .join('&');
 };
@@ -24,17 +25,27 @@ export const list = async (
 
   if (!params.fields) {
     params.fields =
-      'nextPageToken, files(id, name, description, createdTime, parents)';
+      'nextPageToken, files(id, name, description, createdTime, parents, mimeType)';
   }
 
   const url = BASE_URL + '?' + buildParams(params);
 
-  return fetch(url, {
+  const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
     },
-  }).then(res => res.json());
+  });
+  const data = await res.json();
+  if (data?.files) {
+    return data;
+  }
+  return {
+    files: [],
+    nextPageToken: undefined,
+    kind: 'drive#fileList',
+    incompleteSearch: false,
+  };
 };
 
 export const create = async (
