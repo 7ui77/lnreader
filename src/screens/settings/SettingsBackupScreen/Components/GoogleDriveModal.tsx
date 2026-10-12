@@ -195,11 +195,7 @@ function RestoreBackup({
         }
         setBackupList(backups);
       } catch (error) {
-        showToast(
-          error instanceof Error
-            ? error.message
-            : getString('common.somethingWentWrong'),
-        );
+        showToast(error instanceof Error ? error.message : String(error));
         setBackupList([]);
       }
     };
