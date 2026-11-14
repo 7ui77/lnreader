@@ -4,7 +4,10 @@ import WebView, {
   WebViewMessageEvent,
   WebViewNavigation,
 } from 'react-native-webview';
-import type { WebViewErrorEvent } from 'react-native-webview/lib/WebViewTypes';
+import type {
+  ShouldStartLoadRequest,
+  WebViewErrorEvent,
+} from 'react-native-webview/lib/WebViewTypes';
 
 import { getUserAgent } from '@hooks/persisted/useUserAgent';
 import {
@@ -12,6 +15,7 @@ import {
   failHiddenWebviewRequest,
   HiddenWebviewRequest,
   subscribeHiddenWebview,
+  validateSameOriginUrl,
 } from '@plugins/helpers/hiddenWebview';
 
 const buildExtractorScript = (req: HiddenWebviewRequest): string => {
@@ -55,8 +59,11 @@ const buildExtractorScript = (req: HiddenWebviewRequest): string => {
           return;
         }
         if (selector) {
-          var el = document.querySelector(selector);
-          if (el) {
+          var matches = document.querySelectorAll(selector);
+          var hasContent = Array.prototype.some.call(matches, function(el) {
+            return (el.textContent || '').trim().length > 0;
+          });
+          if (hasContent) {
             setTimeout(function() { sendResult(true); }, settleMs);
             return;
           }
@@ -93,8 +100,6 @@ const HiddenWebViewHost = () => {
       return;
     }
     const timer = setTimeout(() => {
-      // eslint-disable-next-line no-console
-      console.warn('[HiddenWebView] Timeout for', activeRequest.url);
       failHiddenWebviewRequest(
         activeRequest.id,
         new Error('fetchViaWebview: timed out waiting for page'),
@@ -132,18 +137,13 @@ const HiddenWebViewHost = () => {
           return;
         }
         if (payload.type === 'result') {
-          // eslint-disable-next-line no-console
-          console.log(
-            '[HiddenWebView] Completed',
-            payload.url,
-            'ok=',
-            payload.ok,
-            'len=',
-            payload.html?.length || 0,
+          const finalUrl = validateSameOriginUrl(
+            String(payload.url || activeRequest.url),
+            activeRequest.allowedOrigin,
           );
           completeHiddenWebviewRequest(activeRequest.id, {
             ok: Boolean(payload.ok),
-            url: String(payload.url || activeRequest.url),
+            url: finalUrl,
             html: String(payload.html || ''),
             title: String(payload.title || ''),
           });
@@ -178,6 +178,30 @@ const HiddenWebViewHost = () => {
     [activeRequest],
   );
 
+  const handleShouldStartLoadWithRequest = useCallback(
+    (request: ShouldStartLoadRequest) => {
+      if (!activeRequest) {
+        return false;
+      }
+      if (request.url === 'about:blank') {
+        return true;
+      }
+      try {
+        validateSameOriginUrl(request.url, activeRequest.allowedOrigin);
+        return true;
+      } catch (err) {
+        if (request.isTopFrame !== false) {
+          failHiddenWebviewRequest(
+            activeRequest.id,
+            err instanceof Error ? err : new Error(String(err)),
+          );
+        }
+        return false;
+      }
+    },
+    [activeRequest],
+  );
+
   const source = useMemo(
     () => (activeRequest ? { uri: activeRequest.url } : undefined),
     [activeRequest],
@@ -200,6 +224,7 @@ const HiddenWebViewHost = () => {
         setSupportMultipleWindows={false}
         onLoadEnd={handleLoadEnd}
         onNavigationStateChange={handleNavigationStateChange}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
         onError={handleError}
       />

@@ -15,6 +15,7 @@ export interface HiddenWebviewResponse {
 export interface HiddenWebviewRequest {
   id: number;
   url: string;
+  allowedOrigin: string;
   waitForSelector?: string;
   timeoutMs: number;
   settleMs: number;
@@ -53,9 +54,9 @@ export const subscribeHiddenWebview = (listener: Listener): (() => void) => {
   };
 };
 
-export const completeHiddenWebviewRequest = (
+const settleActiveRequest = (
   id: number,
-  result: HiddenWebviewResponse,
+  settle: (req: HiddenWebviewRequest) => void,
 ) => {
   if (!activeRequest || activeRequest.id !== id) {
     return;
@@ -63,19 +64,19 @@ export const completeHiddenWebviewRequest = (
   const req = activeRequest;
   activeRequest = null;
   notify();
-  req.resolve(result);
+  settle(req);
   pump();
 };
 
+export const completeHiddenWebviewRequest = (
+  id: number,
+  result: HiddenWebviewResponse,
+) => {
+  settleActiveRequest(id, req => req.resolve(result));
+};
+
 export const failHiddenWebviewRequest = (id: number, error: Error) => {
-  if (!activeRequest || activeRequest.id !== id) {
-    return;
-  }
-  const req = activeRequest;
-  activeRequest = null;
-  notify();
-  req.reject(error);
-  pump();
+  settleActiveRequest(id, req => req.reject(error));
 };
 
 export const validateSameOriginUrl = (url: string, site?: string): string => {
@@ -120,6 +121,7 @@ export const fetchViaWebviewForSite = (
     const req: HiddenWebviewRequest = {
       id: nextId++,
       url: validatedUrl,
+      allowedOrigin: new URL(validatedUrl).origin,
       waitForSelector: options?.waitForSelector,
       timeoutMs: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       settleMs: options?.settleMs ?? DEFAULT_SETTLE_MS,
